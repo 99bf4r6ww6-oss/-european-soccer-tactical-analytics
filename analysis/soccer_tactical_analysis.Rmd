@@ -1,0 +1,339 @@
+---
+title: "Team Attribute"
+output:
+  pdf_document: default
+  html_document: default
+date: "2026-10-03"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load Data
+
+
+```{r}
+team_attributes <- read.csv("Team_Attributes.csv")
+dim(team_attributes)
+```
+## Interaction Plot
+
+```{r}
+library(ggplot2)
+
+ggplot(team_attributes,
+       aes(x = chanceCreationPassing,
+           y = chanceCreationShooting,
+           color = chanceCreationPositioningClass)) +
+  geom_point(alpha = 0.35) +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(
+    x = "Chance Creation Passing",
+    y = "Chance Creation Shooting",
+    color = "Positioning Class",
+    title = "Passing vs. Shooting by Positioning Style"
+  ) +
+  theme_minimal()
+```
+
+## Data Preparation
+
+
+```{r}
+soccer_model_data <- team_attributes[, c(
+  "chanceCreationShooting",
+  "buildUpPlaySpeed",
+  "buildUpPlayDribblingClass",
+  "buildUpPlayPassing",
+  "buildUpPlayPositioningClass",
+  "chanceCreationPassing",
+  "chanceCreationCrossing",
+  "chanceCreationPositioningClass",
+  "defencePressure",
+  "defenceAggression",
+  "defenceTeamWidth",
+  "defenceDefenderLineClass"
+)]
+
+# Convert categorical variables to factors
+soccer_model_data$buildUpPlayDribblingClass <-
+  factor(soccer_model_data$buildUpPlayDribblingClass)
+
+soccer_model_data$buildUpPlayPositioningClass <-
+  factor(soccer_model_data$buildUpPlayPositioningClass)
+
+soccer_model_data$chanceCreationPositioningClass <-
+  factor(soccer_model_data$chanceCreationPositioningClass)
+
+soccer_model_data$defenceDefenderLineClass <-
+  factor(soccer_model_data$defenceDefenderLineClass)
+
+# Check model dataset
+dim(soccer_model_data)
+colSums(is.na(soccer_model_data))
+```
+## Multiple Linear Regression Model
+
+```{r}
+soccer_model <- lm(
+  chanceCreationShooting ~
+    buildUpPlaySpeed +
+    buildUpPlayDribblingClass +
+    buildUpPlayPassing +
+    buildUpPlayPositioningClass +
+    chanceCreationPassing *
+      chanceCreationPositioningClass +
+    chanceCreationCrossing +
+    defencePressure +
+    defenceAggression +
+    defenceTeamWidth +
+    defenceDefenderLineClass,
+  data = soccer_model_data
+)
+
+summary(soccer_model)
+```
+## Key Model Results
+
+```{r}
+# Full coefficient table
+coef(summary(soccer_model))
+
+# Model fit statistics
+summary(soccer_model)$r.squared
+summary(soccer_model)$adj.r.squared
+
+# Sample size used in the model
+nobs(soccer_model)
+```
+## Model Diagnostics
+
+To assess whether the multiple linear regression assumptions are reasonably satisfied, diagnostic plots were examined for linearity, normality of residuals, constant variance, and potentially influential observations.
+
+```{r}
+# Model diagnostic plots
+
+# 1. Residuals vs Fitted
+plot(
+  soccer_model,
+  which = 1,
+  main = "Residuals vs Fitted"
+)
+
+# 2. Normal Q-Q
+plot(
+  soccer_model,
+  which = 2,
+  main = "Normal Q-Q"
+)
+
+# 3. Scale-Location
+plot(
+  soccer_model,
+  which = 3,
+  main = "Scale-Location"
+)
+
+# 4. Residuals vs Leverage
+plot(
+  soccer_model,
+  which = 5,
+  main = "Residuals vs Leverage"
+)
+```
+## Influential Observation Analysis
+
+Potentially influential observations were evaluated using Cook's distance and leverage measures.
+
+```{r}
+# Calculate Cook's distance
+cooks_d <- cooks.distance(soccer_model)
+
+# Number of observations
+n <- nobs(soccer_model)
+
+# Common Cook's distance threshold
+cook_threshold <- 4 / n
+
+# Identify observations exceeding the threshold
+influential_obs <- which(cooks_d > cook_threshold)
+
+# Report threshold and number of potentially influential observations
+cook_threshold
+length(influential_obs)
+
+# Display the 10 observations with the largest Cook's distances
+head(sort(cooks_d, decreasing = TRUE), 10)
+
+# Plot Cook's distance
+plot(
+  cooks_d,
+  type = "h",
+  main = "Cook's Distance",
+  xlab = "Observation",
+  ylab = "Cook's Distance"
+)
+
+abline(
+  h = cook_threshold,
+  lty = 2
+)
+```
+## Interaction Effect Analysis
+
+The interaction between chance-creation passing and positioning style was examined to determine whether the association between passing and shooting differs between Free Form and Organised teams.
+
+```{r}
+# Extract model coefficients
+b <- coef(soccer_model)
+
+# Estimated passing slope for Free Form teams
+slope_freeform <- b["chanceCreationPassing"]
+
+# Estimated passing slope for Organised teams
+slope_organised <-
+  b["chanceCreationPassing"] +
+  b["chanceCreationPassing:chanceCreationPositioningClassOrganised"]
+
+# Difference in passing slopes between positioning styles
+slope_difference <-
+  b["chanceCreationPassing:chanceCreationPositioningClassOrganised"]
+
+# Display estimated slopes
+slope_freeform
+slope_organised
+slope_difference
+
+# 95% confidence intervals for the Free Form slope
+# and the interaction coefficient
+confint(soccer_model)[
+  c(
+    "chanceCreationPassing",
+    "chanceCreationPassing:chanceCreationPositioningClassOrganised"
+  ),
+]
+```
+```{r}
+# Statistical inference for the passing slope among Organised teams
+
+V <- vcov(soccer_model)
+
+b_pass <- coef(soccer_model)["chanceCreationPassing"]
+b_int <- coef(soccer_model)[
+  "chanceCreationPassing:chanceCreationPositioningClassOrganised"
+]
+
+# Estimated passing slope for Organised teams
+slope_organised <- b_pass + b_int
+
+# Standard error of the combined slope
+se_organised <- sqrt(
+  V["chanceCreationPassing", "chanceCreationPassing"] +
+  V["chanceCreationPassing:chanceCreationPositioningClassOrganised",
+    "chanceCreationPassing:chanceCreationPositioningClassOrganised"] +
+  2 * V["chanceCreationPassing",
+        "chanceCreationPassing:chanceCreationPositioningClassOrganised"]
+)
+
+# t statistic
+t_organised <- slope_organised / se_organised
+
+# p-value
+p_organised <- 2 * pt(
+  abs(t_organised),
+  df = df.residual(soccer_model),
+  lower.tail = FALSE
+)
+
+# 95% confidence interval
+ci_organised <- slope_organised +
+  c(-1, 1) *
+  qt(0.975, df.residual(soccer_model)) *
+  se_organised
+
+# Display results
+slope_organised
+se_organised
+t_organised
+p_organised
+ci_organised
+```
+```{r}
+# Sensitivity analysis excluding observations flagged by Cook's Distance
+
+# Create a sensitivity-analysis dataset
+soccer_model_data_sensitivity <- soccer_model_data[-influential_obs, ]
+
+# Refit the same model
+soccer_model_sensitivity <- lm(
+  chanceCreationShooting ~
+    buildUpPlaySpeed +
+    buildUpPlayDribblingClass +
+    buildUpPlayPassing +
+    buildUpPlayPositioningClass +
+    chanceCreationPassing * chanceCreationPositioningClass +
+    chanceCreationCrossing +
+    defencePressure +
+    defenceAggression +
+    defenceTeamWidth +
+    defenceDefenderLineClass,
+  data = soccer_model_data_sensitivity
+)
+
+# Check remaining sample size
+nobs(soccer_model_sensitivity)
+
+# Display sensitivity-model results
+summary(soccer_model_sensitivity)
+```
+```{r}
+# Organised-team passing slope in the sensitivity model
+
+V_sens <- vcov(soccer_model_sensitivity)
+
+b_pass_sens <- coef(soccer_model_sensitivity)["chanceCreationPassing"]
+
+b_int_sens <- coef(soccer_model_sensitivity)[
+  "chanceCreationPassing:chanceCreationPositioningClassOrganised"
+]
+
+# Estimated passing slope for Organised teams
+slope_organised_sens <- b_pass_sens + b_int_sens
+
+# Standard error
+se_organised_sens <- sqrt(
+  V_sens["chanceCreationPassing", "chanceCreationPassing"] +
+  V_sens[
+    "chanceCreationPassing:chanceCreationPositioningClassOrganised",
+    "chanceCreationPassing:chanceCreationPositioningClassOrganised"
+  ] +
+  2 * V_sens[
+    "chanceCreationPassing",
+    "chanceCreationPassing:chanceCreationPositioningClassOrganised"
+  ]
+)
+
+# t statistic and p-value
+t_organised_sens <- slope_organised_sens / se_organised_sens
+
+p_organised_sens <- 2 * pt(
+  abs(t_organised_sens),
+  df = df.residual(soccer_model_sensitivity),
+  lower.tail = FALSE
+)
+
+# 95% confidence interval
+ci_organised_sens <- slope_organised_sens +
+  c(-1, 1) *
+  qt(0.975, df.residual(soccer_model_sensitivity)) *
+  se_organised_sens
+
+# Display results
+slope_organised_sens
+se_organised_sens
+t_organised_sens
+p_organised_sens
+ci_organised_sens
+```
+
