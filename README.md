@@ -38,6 +38,13 @@ The analysis was conducted in **R** and included:
 6. Cook's Distance analysis for influential observations
 7. Sensitivity analysis after excluding potentially influential observations
 
+## Reproducing the Analysis
+
+1. Download the European Soccer Database from the Kaggle source linked above.
+2. Export the `Team_Attributes` table as `Team_Attributes.csv`.
+3. Place `Team_Attributes.csv` in the working directory used by the R Markdown analysis.
+4. Open `analysis/soccer_tactical_analysis.Rmd` in RStudio and render the document.
+
 ## Key Finding: Positioning Style Moderates the Passing-Shooting Relationship
 
 The model identified a statistically significant interaction between **chance-creation passing and positioning style (p < 0.001)**.
