@@ -14,14 +14,18 @@ Using **1,458 team observations and 11 tactical predictors**, I developed a mult
 
 ## Dataset
 
+Data for this project comes from the [European Soccer Database](https://www.kaggle.com/datasets/hugomathien/soccer), compiled by Hugo Mathien and publicly available on Kaggle.
+
+The analysis uses the `Team_Attributes` table, which contains **1,458 observations and 25 original variables** describing European club teams and their tactical attributes. A subset of **11 tactical predictors** was selected for the regression analysis, with `chanceCreationShooting` used as the response variable.
+
 The modeling dataset contains:
-
-- **1,458 team observations**
+- **1,458 observations**
 - **11 tactical predictors**
-- Response variable: `chanceCreationShooting`
-- Continuous and categorical tactical attributes covering build-up play, chance creation, positioning, and defensive strategy
-- No missing values among variables included in the final model
+- **Response variable:** `chanceCreationShooting`
+- Continuous and categorical tactical attributes
+- No missing values among the variables used in the final model
 
+The raw dataset is not redistributed in this repository. It can be obtained directly from the original Kaggle source above.
 ## Analytical Approach
 
 The analysis was conducted in **R** and included:
